@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>51 -> 34 REAL</title>
+<style>
+  body { background: #111; color: #fff; font-family: sans-serif; text-align: center; padding: 20px; }
+  input { width: 95%; font-size: 16px; padding: 12px; border-radius: 10px; border: none; text-align: center; }
+  button { font-size: 20px; padding: 12px 25px; margin-top: 15px; border-radius: 10px; background: #00ff88; border: none; font-weight: bold; }
+  #saida { font-size: 18px; margin-top: 20px; color: #00ff88; font-weight: bold; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h1>51 -> 34 REAL</h1>
+  <p>Cola chave de 51 começando com 5</p>
+  <input id="entrada" maxlength="51" placeholder="5K..." />
+  <br>
+  <button onclick="gerar()">GERAR ENDEREÇO</button>
+  <div id="saida">-</div>
+
+<script type="module">
+import { sha256, ripemd160 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.3.3/+esm';
+import { base58 } from 'https://cdn.jsdelivr.net/npm/@scure/base@1.1.6/+esm';
+import { secp256k1 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.3.0/+esm';
+
+window.gerar = function() {
+  let wif = document.getElementById("entrada").value.trim();
+  if (wif.length !== 51) {
+    alert("Tem que ter 51! Você colocou " + wif.length);
+    return;
+  }
+  try {
+    // 1. Decodifica WIF
+    let decoded = base58.decode(wif);
+    let privKey = decoded.slice(1, 33);
+
+    // 2. PASSO QUE FALTAVA: Privada -> Pública pela curva secp256k1
+    // false = sem compressão, porque chave de 51 é sem compressão
+    let pubKey = secp256k1.getPublicKey(privKey, false); // 65 bytes, começa com 04
+
+    // 3. SHA256 + RIPEMD160 da chave PÚBLICA (não da privada)
+    let hash1 = sha256(pubKey);
+    let hash160 = ripemd160(hash1);
+
+    // 4. Base58Check
+    let payload = new Uint8Array(21);
+    payload[0] = 0x00;
+    payload.set(hash160, 1);
+    let checksum = sha256(sha256(payload)).slice(0, 4);
+    let full = new Uint8Array(25);
+    full.set(payload, 0);
+    full.set(checksum, 21);
+
+    let endereco = base58.encode(full);
+    document.getElementById("saida").innerText = endereco + " (" + endereco.length + " caracteres)";
+  } catch(e) {
+    alert("Chave inválida! Erro: " + e.message);
+  }
+}
+</script>
+</body>
+</html>
